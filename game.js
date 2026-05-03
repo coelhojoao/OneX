@@ -344,6 +344,49 @@ function renderizar() {
     document.getElementById('sentido-indicador').innerText = sentidoHorario ? "Horário ↻" : "Anti-Horário ↺";
     if(nomes.length > 0) document.getElementById('indicador-jogador').innerText = nomes[turnoAtual];
 
+    // Glow na área do jogador ativo
+    const todasAreas = [
+        document.getElementById('minha-mao'),
+        document.getElementById('visual-op-esq'),
+        document.getElementById('visual-op-topo'),
+        document.getElementById('visual-op-dir')
+    ];
+    todasAreas.forEach(a => a && a.classList.remove('area-ativa'));
+
+    // Descobre qual área visual corresponde ao turnoAtual
+    let areaAtiva = null;
+    if (salaIdAtual) {
+        const n = nomes.length;
+        if (turnoAtual === meuIndice) {
+            areaAtiva = document.getElementById('minha-mao');
+        } else {
+            const slotsVis = n === 2 ? [2] : n === 3 ? [1, 3] : [1, 2, 3];
+            const areaIds = [null, 'visual-op-esq', 'visual-op-topo', 'visual-op-dir'];
+            let slotIdx = 0;
+            for (let i = 0; i < n; i++) {
+                const rel = (i - meuIndice + n) % n;
+                if (rel === 0) continue;
+                if (i === turnoAtual) {
+                    areaAtiva = document.getElementById(areaIds[slotsVis[slotIdx]]);
+                    break;
+                }
+                slotIdx++;
+            }
+        }
+    } else if (vsCPU) {
+        const mapaVSCPU = [
+            document.getElementById('minha-mao'),
+            document.getElementById('visual-op-esq'),
+            document.getElementById('visual-op-topo'),
+            document.getElementById('visual-op-dir')
+        ];
+        areaAtiva = mapaVSCPU[turnoAtual] || null;
+    } else {
+        // Multiplayer local: sempre destaca o painel inferior
+        areaAtiva = document.getElementById('minha-mao');
+    }
+    if (areaAtiva) areaAtiva.classList.add('area-ativa');
+
     placarBox.innerHTML = nomes.map((n, i) => `
         <div class="placar-item" style="opacity: ${turnoAtual === i ? 1 : 0.5}">
             <div class="placar-valor">${placar[i] || 0}</div>

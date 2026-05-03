@@ -388,6 +388,28 @@ body {
 }
 
 .mao-oponente { display: flex; gap: 3px; justify-content: center; align-items: center; }
+
+/* ── GLOW DE TURNO ATIVO ── */
+@keyframes turnoGlow {
+    0%, 100% { box-shadow: 0 0 0px rgba(0,200,255,0); }
+    50%       { box-shadow: 0 0 22px 4px rgba(0,200,255,0.28); }
+}
+
+.area-ativa {
+    border-radius: 12px;
+    animation: turnoGlow 1.8s ease-in-out infinite;
+}
+
+/* Glow no painel inferior (minha vez) */
+#minha-mao.area-ativa {
+    border-top-color: rgba(0,200,255,0.35);
+    animation: turnoGlowMao 1.8s ease-in-out infinite;
+}
+
+@keyframes turnoGlowMao {
+    0%, 100% { box-shadow: 0 -4px 0px rgba(0,200,255,0); }
+    50%       { box-shadow: 0 -4px 24px rgba(0,200,255,0.3); }
+}
 .area-topo { 
     height: 100px; 
     display: flex; 
