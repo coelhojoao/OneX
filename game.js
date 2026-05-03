@@ -422,7 +422,7 @@ function renderizar() {
     });
 }
 
-function jogar(i) {
+async function jogar(i) {
     try {
         if (!jogoAtivo) return;
         if (turnoAtual === 0 && !podeInteragir && !salaIdAtual) return; 
@@ -490,8 +490,9 @@ function jogar(i) {
             else trocarTurno();
         }
         
+        // Sincroniza para carta não-preta (preta sincroniza em escolherCor)
         if (salaIdAtual && c.cor !== 'preto') {
-            sincronizarComFirebase();
+            await sincronizarComFirebase();
         }
 
     } catch (erro) {
@@ -566,7 +567,7 @@ function trocarTurno(pulou = false, turnoAnterior = turnoAtual) {
     }
 }
 
-function comprarCarta() {
+async function comprarCarta() {
     if (!jogoAtivo) return;
     if (salaIdAtual && turnoAtual !== meuIndice) return; 
     if (turnoAtual === 0 && !podeInteragir && !salaIdAtual) return;
@@ -588,12 +589,16 @@ function comprarCarta() {
     const podeJogar = (nova.cor === 'preto' || nova.cor === topo.cor || nova.valor === topo.valor);
     
     if (salaIdAtual) {
-        if (!podeJogar) {
+        if (!podeJogar || tipoAtaque) {
+            // Não pode jogar OU está sob ataque acumulado: passa o turno
+            // Se sob ataque acumulado, trocarTurno distribuirá as cartas automaticamente
             podeInteragir = false;
-            setTimeout(() => { trocarTurno(); sincronizarComFirebase(); }, 800);
+            await sincronizarComFirebase();
+            setTimeout(() => trocarTurno(), 600);
         } else {
-            podeInteragir = true; 
-            sincronizarComFirebase(); 
+            // Pode jogar a carta comprada: mantém o turno para o jogador decidir
+            podeInteragir = true;
+            await sincronizarComFirebase();
         }
     } else {
         if (turnoAtual === 0 || !vsCPU) {
@@ -1238,8 +1243,6 @@ function ouvirMudancasOnline(idSala) {
 
 async function sincronizarComFirebase() {
     if (!salaIdAtual) return;
-    
-    podeInteragir = false; 
 
     await window.firestore.updateDoc(window.firestore.doc(window.db, "salas", salaIdAtual), {
         baralho: JSON.stringify(baralho),
