@@ -590,14 +590,26 @@ async function comprarCarta() {
     
     if (salaIdAtual) {
         if (!podeJogar || tipoAtaque) {
-            // Não pode jogar OU está sob ataque acumulado: passa o turno
-            // Se sob ataque acumulado, trocarTurno distribuirá as cartas automaticamente
+            // Não pode jogar: avança o turno localmente e sobe estado já com turno novo
             podeInteragir = false;
+
+            // Se há acumulado, distribui antes de avançar
+            if (acumulado > 0) {
+                const temAtaque = maos[turnoAtual].some(c => c.valor === tipoAtaque);
+                if (!temAtaque) {
+                    for (let j = 0; j < acumulado; j++) if (baralho.length) maos[turnoAtual].push(baralho.pop());
+                    acumulado = 0; tipoAtaque = null;
+                }
+            }
+
+            turnoAtual = calcularProximo(1);
+            podeInteragir = (turnoAtual === meuIndice);
+            renderizar();
             await sincronizarComFirebase();
-            setTimeout(() => trocarTurno(), 600);
         } else {
             // Pode jogar a carta comprada: mantém o turno para o jogador decidir
             podeInteragir = true;
+            renderizar();
             await sincronizarComFirebase();
         }
     } else {
