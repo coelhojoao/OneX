@@ -467,6 +467,7 @@ async function jogar(i) {
         }
 
         if (c.cor === 'preto') {
+            // Se foi a última carta (vitória já tratada acima), não abre modal
             if (!vsCPU || (vsCPU && turnoAtual === 0)) {
                 SOM.wild();
                 toggleModal('modal-cor', true);
@@ -508,14 +509,14 @@ function aplicarEfeitoMais4() {
     trocarTurno();
 }
 
-window.escolherCor = function(cor) {
+window.escolherCor = async function(cor) {
     const ultimaCarta = historicoDescarte[historicoDescarte.length - 1];
     ultimaCarta.cor = cor;
     toggleModal('modal-cor', false);
     ultimaCarta.valor === '+4' ? aplicarEfeitoMais4() : trocarTurno();
 
     if (salaIdAtual) {
-        sincronizarComFirebase();
+        await sincronizarComFirebase();
     } else {
         renderizar();
     }
@@ -1410,18 +1411,23 @@ function ouvirVotosRevanche(idSala) {
             // Todos votaram → criador inicia nova rodada
             if (dados.votosRevanche >= qtd && dados.status === "fim") {
                 if (meuIndice === 0) {
+                    // Criador: inicia nova rodada (muda status para "jogando")
                     await window.firestore.updateDoc(
                         window.firestore.doc(window.db, "salas", idSala),
-                        { votosRevanche: 0, status: "jogando" }
+                        { votosRevanche: 0 }
                     );
                     iniciarJogoOnline(idSala, true);
-                } else {
-                    // Convidados aguardam novo snapshot de rodada
-                    toggleModal('modal-fim', false);
-                    votouJogarNovamente = false;
-                    jogoAtivo = false;
-                    document.getElementById('tela-embaralhando').style.display = 'flex';
                 }
+                // Convidados: aguardam o snapshot com nova rodada (detectado abaixo)
+            }
+
+            // Convidados detectam nova rodada quando criador subiu novo estado
+            if (dados.status === "jogando" && dados.rodada > rodadaLocal && meuIndice !== 0) {
+                toggleModal('modal-fim', false);
+                votouJogarNovamente = false;
+                jogoAtivo = false;
+                document.getElementById('tela-embaralhando').style.display = 'flex';
+                // ouvirMudancasOnline vai carregar o novo estado automaticamente
             }
 
             // Alguém voltou ao lobby → todos voltam
