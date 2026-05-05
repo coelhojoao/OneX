@@ -40,8 +40,7 @@ body {
 /* ── MODAIS ── */
 .modal-overlay {
     display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,0.88);
-    backdrop-filter: blur(8px);
+    background: rgba(0,0,0,0.7);
     z-index: 8000; flex-direction: column;
     align-items: center; justify-content: center;
 }
@@ -397,18 +396,12 @@ body {
 
 .area-ativa {
     border-radius: 12px;
-    animation: turnoGlow 1.8s ease-in-out infinite;
+    animation: vezGlow 1.2s ease-in-out infinite;
 }
 
-/* Glow no painel inferior (minha vez) */
-#minha-mao.area-ativa {
-    border-top-color: rgba(0,200,255,0.35);
-    animation: turnoGlowMao 1.8s ease-in-out infinite;
-}
-
-@keyframes turnoGlowMao {
-    0%, 100% { box-shadow: 0 -4px 0px rgba(0,200,255,0); }
-    50%       { box-shadow: 0 -4px 24px rgba(0,200,255,0.3); }
+@keyframes vezGlow {
+    0%, 100% { border: 2px solid var(--ox-cyan); box-shadow: 0 0 8px var(--ox-glow); }
+    50% { border: 2px solid var(--ox-cyan); box-shadow: 0 0 20px var(--ox-cyan); }
 }
 .area-topo { 
     height: 100px; 
@@ -496,6 +489,10 @@ body {
     transition: transform 0.2s;
 }
 #deck-visual:active { transform: scale(0.95); }
+
+#deck-visual.deck-sem-jogada {
+    animation: glow 1.4s infinite;
+}
 #pilha-descarte {
     display: grid; place-items: center;
     width: var(--carta-w); height: var(--carta-h);
@@ -675,6 +672,11 @@ body {
 @keyframes glow {
     0%, 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.5), 0 0 0 0 rgba(0,200,255,0); }
     50%       { box-shadow: 0 4px 24px rgba(0,0,0,0.4), 0 0 14px 3px rgba(0,200,255,0.55); }
+}
+.carta-turno-ativo { animation: vezGlowCartas 1.8s ease-in-out infinite; }
+@keyframes vezGlowCartas {
+    0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 0 rgba(0,200,255,0); }
+    50%       { box-shadow: 0 2px 12px rgba(0,0,0,0.4), 0 0 10px 2px rgba(0,200,255,0.35); }
 }
 
 /* ============================================================

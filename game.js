@@ -13,6 +13,7 @@ let votosUnsubscribe = null;       // listener de votos de revanche
 let heartbeatInterval = null;  // timer do heartbeat local
 let presenceListeners = [];    // listeners de presence dos outros jogadores
 let botTimeouts = {};          // timeouts de promoção de bot por índice
+let escolhendoCor = false;     // flag para evitar race condition com cartas pretas
 
 
 // ============================================================
@@ -385,8 +386,6 @@ function renderizar() {
         // Multiplayer local: sempre destaca o painel inferior
         areaAtiva = document.getElementById('minha-mao');
     }
-    if (areaAtiva) areaAtiva.classList.add('area-ativa');
-
     placarBox.innerHTML = nomes.map((n, i) => `
         <div class="placar-item" style="opacity: ${turnoAtual === i ? 1 : 0.5}">
             <div class="placar-valor">${placar[i] || 0}</div>
@@ -429,16 +428,30 @@ function renderizar() {
 
     maos.forEach((mao, idx) => {
         let noPainelInferior = salaIdAtual ? (idx === meuIndice) : (vsCPU ? (idx === 0) : (idx === turnoAtual));
+        const possoClicarAgora = salaIdAtual ? (turnoAtual === meuIndice) : (vsCPU ? (turnoAtual === 0) : true);
 
         if (noPainelInferior) {
             const topo = historicoDescarte[historicoDescarte.length - 1];
+
+            // Brilho no deck quando não tem cartas jogáveis
+            const deckVisual = document.getElementById('deck-visual');
+            if (deckVisual) {
+                const temAlgumaJogavel = mao.some(c =>
+                    tipoAtaque ? (c.valor === tipoAtaque) : (c.cor === 'preto' || c.cor === topo.cor || c.valor === topo.valor)
+                );
+                if (!temAlgumaJogavel && podeInteragir && possoClicarAgora) {
+                    deckVisual.classList.add('deck-sem-jogada');
+                } else {
+                    deckVisual.classList.remove('deck-sem-jogada');
+                }
+            }
+
             mao.forEach((c, i) => {
                 const div = criarElementoCarta(c);
                 // Se há acumulado ativo, só pode encadear com a mesma carta de ataque
                 const ehValida = tipoAtaque
                     ? (c.valor === tipoAtaque)
                     : (c.cor === 'preto' || c.cor === topo.cor || c.valor === topo.valor);
-                const possoClicarAgora = salaIdAtual ? (turnoAtual === meuIndice) : (vsCPU ? (turnoAtual === 0) : true);
 
                 if (podeInteragir && possoClicarAgora && ehValida) {
                     div.classList.add('brilho-ativo');
@@ -459,6 +472,9 @@ function renderizar() {
             if (target) mao.forEach(() => {
                 const back = document.createElement('div');
                 back.className = 'carta-costas';
+                if (idx === turnoAtual) {
+                    back.classList.add('carta-turno-ativo');
+                }
                 target.appendChild(back);
             });
         }
@@ -513,6 +529,13 @@ async function jogar(i) {
             // Se foi a última carta (vitória já tratada acima), não abre modal
             if (!vsCPU || (vsCPU && turnoAtual === 0)) {
                 SOM.wild();
+                // Sincroniza estado ANTES de abrir modal de cor (evita race condition)
+                if (salaIdAtual) {
+                    await sincronizarComFirebase();
+                }
+                if (salaIdAtual && turnoAtual === meuIndice) {
+                    escolhendoCor = true;
+                }
                 toggleModal('modal-cor', true);
             } else {
                 historicoDescarte[historicoDescarte.length - 1].cor = cores[Math.floor(Math.random() * 4)];
@@ -556,6 +579,7 @@ window.escolherCor = async function(cor) {
     const ultimaCarta = historicoDescarte[historicoDescarte.length - 1];
     ultimaCarta.cor = cor;
     toggleModal('modal-cor', false);
+    escolhendoCor = false;
     ultimaCarta.valor === '+4' ? aplicarEfeitoMais4() : trocarTurno();
 
     if (salaIdAtual) {
@@ -633,11 +657,10 @@ async function comprarCarta() {
     const podeJogar = (nova.cor === 'preto' || nova.cor === topo.cor || nova.valor === topo.valor);
     
     if (salaIdAtual) {
-        if (!podeJogar || tipoAtaque) {
-            // Não pode jogar: avança o turno localmente e sobe estado já com turno novo
+        const podeEncadear = tipoAtaque && nova.valor === tipoAtaque;
+        if (!podeJogar || (tipoAtaque && !podeEncadear)) {
             podeInteragir = false;
 
-            // Se há acumulado, distribui antes de avançar
             if (acumulado > 0) {
                 const temAtaque = maos[turnoAtual].some(c => c.valor === tipoAtaque);
                 if (!temAtaque) {
@@ -651,16 +674,20 @@ async function comprarCarta() {
             renderizar();
             await sincronizarComFirebase();
         } else {
-            // Pode jogar a carta comprada: mantém o turno para o jogador decidir
             podeInteragir = true;
             renderizar();
             await sincronizarComFirebase();
         }
     } else {
         if (turnoAtual === 0 || !vsCPU) {
+            const podeEncadear = tipoAtaque && nova.valor === tipoAtaque;
             if (!podeJogar) { podeInteragir = false; setTimeout(trocarTurno, 800); }
+            else if (podeEncadear) { setTimeout(() => jogar(maos[turnoAtual].length-1), 800); }
+            else if (!tipoAtaque && podeJogar) { setTimeout(() => jogar(maos[turnoAtual].length-1), 800); }
+            else { podeInteragir = false; setTimeout(trocarTurno, 800); }
         } else {
-            if (podeJogar) setTimeout(() => jogar(maos[turnoAtual].length-1), 800);
+            const podeEncadear = tipoAtaque && nova.valor === tipoAtaque;
+            if (podeJogar && (podeEncadear || !tipoAtaque)) setTimeout(() => jogar(maos[turnoAtual].length-1), 800);
             else setTimeout(trocarTurno, 800);
         } 
         renderizar();
@@ -901,7 +928,7 @@ window.sairDoLobby = async () => {
 // --- PRESENCE E BOT DE SUBSTITUIÇÃO ---
 
 const HEARTBEAT_INTERVAL = 5000;  // escreve presença a cada 5s
-const BOT_TIMEOUT = 15000;        // promove bot após 15s sem heartbeat
+const BOT_TIMEOUT = 25000;        // promove bot após 25s sem heartbeat
 
 // Inicia o heartbeat deste cliente
 // Usa RTDB se disponível (onDisconnect server-side), senão usa Firestore como fallback
@@ -981,7 +1008,7 @@ function observarPresenceOutros(idSala) {
                             botTimeouts[idx] = setTimeout(() => {
                                 promoverBot(idx);
                                 delete botTimeouts[idx];
-                            }, 0);
+                            }, BOT_TIMEOUT);
                         } else if (!offline && botTimeouts[idx]) {
                             clearTimeout(botTimeouts[idx]);
                             delete botTimeouts[idx];
@@ -1006,9 +1033,14 @@ function pararObservacaoPresence() {
 // Promove um bot para o slot idx: marca no Firebase
 async function promoverBot(idx) {
     if (!salaIdAtual || !jogoAtivo) return;
-    // Só o cliente com menor índice ativo promove (evita duplicação)
-    const menorAtivo = nomes.findIndex((_, i) => i !== idx);
-    if (menorAtivo !== meuIndice) return;
+    // Não promove bot para o próprio jogador
+    if (idx === meuIndice) return;
+    
+    // Verifica se há algum jogador com índice menor que eu (sou o menor índice ativo)
+    const temMenor = nomes.findIndex((_, i) => i < meuIndice && i !== idx);
+    // Só promove se eu for o menor índice ativo na sala
+    if (temMenor !== -1 && temMenor < meuIndice) return;
+    if (temMenor === -1 && meuIndice > idx) return;
 
     try {
         await window.firestore.updateDoc(
@@ -1021,8 +1053,11 @@ async function promoverBot(idx) {
 // Remove o bot do slot idx quando jogador reconecta
 async function removerBot(idx) {
     if (!salaIdAtual) return;
-    const menorAtivo = nomes.findIndex((_, i) => i !== idx);
-    if (menorAtivo !== meuIndice) return;
+    if (idx === meuIndice) return;
+    
+    const temMenor = nomes.findIndex((_, i) => i < meuIndice && i !== idx);
+    if (temMenor !== -1 && temMenor < meuIndice) return;
+    if (temMenor === -1 && meuIndice > idx) return;
 
     try {
         await window.firestore.updateDoc(
@@ -1106,10 +1141,17 @@ async function jogarComoBot(idx) {
             SOM.comprarCarta();
             const topo2 = historicoDescarte[historicoDescarte.length - 1];
             const podeJogar = (nova.cor === 'preto' || nova.cor === topo2.cor || nova.valor === topo2.valor);
-            if (podeJogar && !tipoAtaque) {
-                // Joga a carta comprada após delay
+            const podeEncadear = tipoAtaque && nova.valor === tipoAtaque;
+            if (podeJogar && (podeEncadear || !tipoAtaque)) {
                 setTimeout(() => jogarComoBot(idx), 800);
                 return;
+            }
+            if (acumulado > 0) {
+                const temAtaque = maos[idx].some(c => c.valor === tipoAtaque);
+                if (!temAtaque) {
+                    for (let j = 0; j < acumulado; j++) if (baralho.length) maos[idx].push(baralho.pop());
+                    acumulado = 0; tipoAtaque = null;
+                }
             }
             turnoAtual = calcularProximo(1);
             podeInteragir = (turnoAtual === meuIndice);
@@ -1159,6 +1201,8 @@ async function iniciarJogoOnline(idSala, souCriador) {
     salaIdAtual = idSala;
     vsCPU = false;
     jogoAtivo = true; 
+    votouJogarNovamente = false;
+    toggleModal('modal-fim', false);
 
     document.getElementById('menu-inicial').style.display = 'none';
     document.getElementById('btn-sair-partida').style.display = 'flex';
@@ -1244,6 +1288,8 @@ function ouvirMudancasOnline(idSala) {
 
         if (dados.status !== "jogando") return;
 
+        toggleModal('modal-fim', false);
+
         // Nova rodada detectada por convidados: reinicia o estado local
         if (dados.rodada && dados.rodada > rodadaLocal) {
             rodadaLocal = dados.rodada;
@@ -1254,6 +1300,11 @@ function ouvirMudancasOnline(idSala) {
 
         if (!jogoAtivo) {
             document.getElementById('tela-embaralhando').style.display = 'none';
+        }
+
+        // Evita race condition: não sobrescreve estado local enquanto jogador escolhe cor
+        if (escolhendoCor && turnoAtual === meuIndice) {
+            return;
         }
 
         jogoAtivo = true; 
@@ -1454,10 +1505,10 @@ function ouvirVotosRevanche(idSala) {
             // Todos votaram → criador inicia nova rodada
             if (dados.votosRevanche >= qtd && dados.status === "fim") {
                 if (meuIndice === 0) {
-                    // Criador: inicia nova rodada (muda status para "jogando")
+                    // Criador: unifica update para evitar race condition
                     await window.firestore.updateDoc(
                         window.firestore.doc(window.db, "salas", idSala),
-                        { votosRevanche: 0 }
+                        { status: "jogando", votosRevanche: 0 }
                     );
                     iniciarJogoOnline(idSala, true);
                 }
