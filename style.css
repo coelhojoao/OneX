@@ -667,6 +667,124 @@ body {
     border: 1px solid rgba(255,255,255,0.15);
 }
 
+/* Wild: círculo com 4 cores sólidas e borda branca */
+.carta.wild .canto {
+    font-size: 0;
+}
+
+.carta.wild .canto::before {
+    content: '';
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: conic-gradient(
+        var(--vermelho) 0deg 90deg,
+        var(--amarelo) 90deg 90deg,
+        var(--amarelo) 90deg 180deg,
+        var(--azul) 180deg 180deg,
+        var(--azul) 180deg 270deg,
+        var(--verde) 270deg 270deg,
+        var(--verde) 270deg 360deg
+    );
+    outline: 2px solid rgba(255,255,255,0.7);
+    outline-offset: -2px;
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.carta.wild .centro::before {
+    content: '';
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: conic-gradient(
+        var(--vermelho) 0deg 90deg,
+        var(--amarelo) 90deg 90deg,
+        var(--amarelo) 90deg 180deg,
+        var(--azul) 180deg 180deg,
+        var(--azul) 180deg 270deg,
+        var(--verde) 270deg 270deg,
+        var(--verde) 270deg 360deg
+    );
+    outline: 2.5px solid rgba(255,255,255,0.7);
+    outline-offset: -2.5px;
+}
+
+.carta.wild .centro span {
+    display: none;
+}
+
+/* +4: mantém estilo original de número */
+.carta.wild-plus4 .canto::before,
+.carta.wild-plus4 .centro::before {
+    display: none;
+}
+.carta.wild-plus4 .centro span {
+    display: block;
+}
+
+/* Wild jogado na pilha: círculo 4 cores + cor escolhida */
+.carta.wild-jogado .canto {
+    font-size: 0;
+}
+
+.carta.wild-jogado .canto::before {
+    content: '';
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: conic-gradient(
+        var(--vermelho) 0deg 90deg,
+        var(--amarelo) 90deg 90deg,
+        var(--amarelo) 90deg 180deg,
+        var(--azul) 180deg 180deg,
+        var(--azul) 180deg 270deg,
+        var(--verde) 270deg 270deg,
+        var(--verde) 270deg 360deg
+    );
+    outline: 2px solid rgba(255,255,255,0.7);
+    outline-offset: -2px;
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.carta.wild-jogado .centro::before {
+    content: '';
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: conic-gradient(
+        var(--vermelho) 0deg 90deg,
+        var(--amarelo) 90deg 90deg,
+        var(--amarelo) 90deg 180deg,
+        var(--azul) 180deg 180deg,
+        var(--azul) 180deg 270deg,
+        var(--verde) 270deg 270deg,
+        var(--verde) 270deg 360deg
+    );
+    outline: 2.5px solid rgba(255,255,255,0.7);
+    outline-offset: -2.5px;
+}
+
+.carta.wild-jogado .centro::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: inherit;
+    border: 1.5px solid rgba(255,255,255,0.6);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.carta.wild-jogado .centro span {
+    display: none;
+}
+
 .carta-apagada { opacity: 0.35; transform: scale(0.92); pointer-events: none; filter: brightness(0.7); }
 .brilho-ativo { animation: glow 1.4s infinite; cursor: pointer; }
 @keyframes glow {

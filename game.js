@@ -283,16 +283,26 @@ function criarBaralho() {
 }
 
 function formatarSimb(v) { 
-    if (v==='S') return '🚫'; 
-    if (v==='R') return '🔄'; 
-    if (v==='W') return '🌈'; 
+    if (v==='S') return '⊘'; 
+    if (v==='R') return '⇄'; 
+    if (v==='W') return 'W'; 
     return v; 
 }
 
 function criarElementoCarta(c) {
     const val = formatarSimb(c.valor);
     const div = document.createElement('div');
-    div.className = 'carta';
+    const isPreta = c.cor === 'preto';
+    const isWild = c.valor === 'W';
+    const isWildJogado = c.ehWild === true;
+    
+    if (isWild && !isPreta && isWildJogado) {
+        div.className = 'carta wild-jogado';
+    } else if (isPreta) {
+        div.className = isWild ? 'carta wild' : 'carta wild-plus4';
+    } else {
+        div.className = 'carta';
+    }
 
     // Cartas pretas (wild): gradiente diagonal em vez de cor sólida
     if (c.cor === 'preto') {
@@ -396,6 +406,9 @@ function renderizar() {
     historicoDescarte.slice(-5).forEach((c, idx) => {
         const div = criarElementoCarta(c);
         div.classList.add('carta-na-pilha');
+        if (c.ehWild) {
+            div.classList.add('wild-jogado');
+        }
         div.style.transform = `translate(${c.ox}px, ${c.oy}px) rotate(${c.rot}deg)`;
         div.style.zIndex = idx;
         pilha.appendChild(div);
@@ -578,6 +591,9 @@ function aplicarEfeitoMais4() {
 window.escolherCor = async function(cor) {
     const ultimaCarta = historicoDescarte[historicoDescarte.length - 1];
     ultimaCarta.cor = cor;
+    if (ultimaCarta.valor === 'W') {
+        ultimaCarta.ehWild = true;
+    }
     toggleModal('modal-cor', false);
     escolhendoCor = false;
     ultimaCarta.valor === '+4' ? aplicarEfeitoMais4() : trocarTurno();
@@ -681,16 +697,18 @@ async function comprarCarta() {
     } else {
         if (turnoAtual === 0 || !vsCPU) {
             const podeEncadear = tipoAtaque && nova.valor === tipoAtaque;
-            if (!podeJogar) { podeInteragir = false; setTimeout(trocarTurno, 800); }
-            else if (podeEncadear) { setTimeout(() => jogar(maos[turnoAtual].length-1), 800); }
-            else if (!tipoAtaque && podeJogar) { setTimeout(() => jogar(maos[turnoAtual].length-1), 800); }
-            else { podeInteragir = false; setTimeout(trocarTurno, 800); }
+            if (!podeJogar) { 
+                podeInteragir = false; 
+                setTimeout(trocarTurno, 800); 
+            } else {
+                podeInteragir = true;
+                renderizar();
+            }
         } else {
             const podeEncadear = tipoAtaque && nova.valor === tipoAtaque;
             if (podeJogar && (podeEncadear || !tipoAtaque)) setTimeout(() => jogar(maos[turnoAtual].length-1), 800);
             else setTimeout(trocarTurno, 800);
         } 
-        renderizar();
     }
 }
 
